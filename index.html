@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ตัวนับถอยหลังและจับเวลา</title>
+<style>
+    body {
+        font-family: 'Arial', sans-serif;
+        background: linear-gradient(135deg, #000000, #1a1a1a, #0d0d0d);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+        padding: 0;
+        color: #ffffff;
+        position: relative;
+    }
+    body::before {
+        content: '';
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: radial-gradient(circle at 20% 30%, rgba(255, 215, 0, 0.1) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 70%, rgba(255, 215, 0, 0.08) 0%, transparent 50%);
+        pointer-events: none;
+        z-index: -1;
+    }
+    .logo {
+    width: 250px;
+    margin-bottom: 30px;
+    animation: goldGlowLogo 3s ease-in-out infinite;
+    filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.5)); /* ลดความฟุ้ง */
+}
+
+@keyframes goldGlowLogo {
+    0%, 100% { 
+        filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.5)); 
+    }
+    50% { 
+        filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.7)); 
+    }
+}
+    .container {
+        background: linear-gradient(145deg, #1a1a1a, #0d0d0d);
+        border: 4px solid #ffd700;
+        border-radius: 20px;
+        padding: 40px;
+        text-align: center;
+        max-width: 90%;
+        width: 800px;
+        box-shadow: 0 6px 30px rgba(0, 0, 0, 0.8),
+                    0 0 20px rgba(255, 215, 0, 0.4),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+    h1 {
+        font-size: 2.5rem;
+        background: linear-gradient(45deg, #ffd700, #ffed4e, #ffd700, #b8860b);
+        background-size: 300% 300%;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+        margin-bottom: 25px;
+    }
+    .timer-display {
+        font-size: 8rem; /* ขยายใหญ่ขึ้น */
+        font-weight: bold;
+        color: #ffd700;
+        margin: 30px 0;
+        padding: 25px;
+        background: linear-gradient(145deg, #0d0d0d, #1a1a1a);
+        border: 3px solid #ffd700;
+        border-radius: 15px;
+        text-shadow: 0 0 25px rgba(255, 215, 0, 0.8);
+    }
+    .btn {
+        background: linear-gradient(145deg, #ffd700, #b8860b);
+        color: #000000;
+        border: none;
+        padding: 10px 15px; /* เล็กลง */
+        border-radius: 20px;
+        font-size: 1rem; /* ลดขนาดตัวอักษร */
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+        min-width: 90px; /* เล็กลง */
+    }
+    .btn:hover {
+        background: linear-gradient(145deg, #ffed4e, #ffd700);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 25px rgba(255, 215, 0, 0.5);
+    }
+    .input-group {
+        display: none;
+        justify-content: center;
+        gap: 15px;
+        margin: 20px 0;
+        flex-wrap: wrap;
+    }
+    .input-field {
+        background: linear-gradient(145deg, #0d0d0d, #1a1a1a);
+        border: 2px solid #ffd700;
+        border-radius: 10px;
+        padding: 12px;
+        font-size: 1.3rem;
+        color: #ffd700;
+        text-align: center;
+        width: 90px;
+    }
+    @media (max-width: 600px) {
+        .timer-display {
+            font-size: 4rem;
+        }
+        .btn {
+            font-size: 1rem;
+            padding: 12px 20px;
+            min-width: 100px;
+        }
+        .input-field {
+            width: 70px;
+            font-size: 1rem;
+        }
+    }
+</style>
+</head>
+<body>
+
+<img src="8308d4b7-8fad-4326-9f27-caf0ceebb4a7-removebg-preview.png" alt="Logo" class="logo">
+
+<div class="container">
+    <h1></h1>
+
+    <div>
+        <button class="btn" onclick="switchMode('stopwatch')">จับเวลา</button>
+        <button class="btn" onclick="switchMode('countdown')">นับถอยหลัง</button>
+    </div>
+
+    <div class="timer-display" id="display">00:00</div>
+
+    <div class="input-group" id="countdownInputs">
+        <input type="number" id="minutes" class="input-field" min="0" max="59" value="0" oninput="updateFromInput()"> นาที
+        <input type="number" id="seconds" class="input-field" min="0" max="59" value="0" oninput="updateFromInput()"> วินาที
+    </div>
+
+    <div class="controls">
+        <button class="btn" id="startBtn" onclick="start()">เริ่ม</button>
+        <button class="btn" id="stopBtn" onclick="stop()" disabled>หยุด</button>
+        <button class="btn" onclick="reset()">รีเซ็ต</button>
+    </div>
+</div>
+
+<script>
+    let currentTime = 0;
+    let countdownTime = 0;
+    let interval = null;
+    let isRunning = false;
+    let mode = 'stopwatch';
+
+    function formatTime(ms) {
+        const totalSeconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+    function updateDisplay() {
+        document.getElementById('display').textContent = formatTime(currentTime);
+    }
+    function updateFromInput() {
+        if (isRunning) return;
+        const minutes = parseInt(document.getElementById('minutes').value) || 0;
+        const seconds = parseInt(document.getElementById('seconds').value) || 0;
+        currentTime = (minutes * 60 + seconds) * 1000;
+        countdownTime = currentTime;
+        updateDisplay();
+    }
+    function switchMode(newMode) {
+        if (isRunning) return;
+        mode = newMode;
+        document.getElementById('countdownInputs').style.display = (mode === 'countdown') ? 'flex' : 'none';
+        reset();
+    }
+    function start() {
+        if (mode === 'countdown' && countdownTime === 0) {
+            alert('กรุณาตั้งเวลานับถอยหลัง');
+            return;
+        }
+        isRunning = true;
+        document.getElementById('startBtn').disabled = true;
+        document.getElementById('stopBtn').disabled = false;
+        interval = setInterval(() => {
+            if (mode === 'stopwatch') {
+                currentTime += 1000;
+            } else {
+                currentTime -= 1000;
+                if (currentTime <= 0) {
+                    currentTime = 0;
+                    updateDisplay();
+                    stop();
+                    return;
+                }
+            }
+            updateDisplay();
+        }, 1000);
+    }
+    function stop() {
+        isRunning = false;
+        clearInterval(interval);
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('stopBtn').disabled = true;
+    }
+    function reset() {
+        stop();
+        currentTime = (mode === 'stopwatch') ? 0 : countdownTime;
+        updateDisplay();
+    }
+    updateDisplay();    
+    
+    document.addEventListener('keydown', function(event) {
+    if (event.code === 'Space') {
+        event.preventDefault(); // ป้องกันการเลื่อนหน้าเว็บ
+        if (isRunning) {
+            stop();
+        } else {
+            start();
+        }
+    }
+});
+</script>
+
+</body>
+</html>
